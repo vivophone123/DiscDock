@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../cart/cart_service.dart';
 import 'product.dart';
+import 'product_detail_screen.dart';
 import 'product_form_screen.dart';
 
 class ProductList extends StatefulWidget {
@@ -53,6 +54,25 @@ class _ProductListState extends State<ProductList> {
                 ? 'เพิ่ม "${p.title}" ในตะกร้าแล้ว'
                 : 'สต๊อกมี ${p.stock} ชิ้นเท่านั้น')));
       },
+    );
+  }
+
+  Widget _leading(Product p) {
+    const size = 56.0;
+    if (p.imageUrls.isEmpty) {
+      return const SizedBox(
+          width: size, height: size, child: Icon(Icons.album, size: 32));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.network(
+        p.imageUrls.first,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox(
+            width: size, height: size, child: Icon(Icons.broken_image)),
+      ),
     );
   }
 
@@ -121,12 +141,18 @@ class _ProductListState extends State<ProductList> {
                       margin: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       child: ListTile(
+                        leading: _leading(p),
                         title: Text(p.title),
                         subtitle: Text(
                             '${p.platform} • ${p.condition == 'new' ? 'มือหนึ่ง' : 'มือสอง'} • ${p.region}\n'
                             '฿${p.price.toStringAsFixed(0)} • เหลือ ${p.stock} ชิ้น'),
                         isThreeLine: true,
                         trailing: _trailing(context, p),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ProductDetailScreen(
+                                    product: p, isOwner: widget.isOwner))),
                       ),
                     );
                   },
