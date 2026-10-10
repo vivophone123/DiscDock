@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
 import 'product.dart';
 import 'product_form_screen.dart';
+import 'product_list.dart';
 import 'product_service.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -77,41 +78,10 @@ class HomeScreen extends StatelessWidget {
               if (items.isEmpty) {
                 return const Center(child: Text('ยังไม่มีสินค้า'));
               }
-              return ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final p = items[i];
-                  return Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: ListTile(
-                      title: Text(p.title),
-                      subtitle: Text(
-                          '${p.platform} • ${p.condition == 'new' ? 'มือหนึ่ง' : 'มือสอง'} • ${p.region}\n'
-                          '฿${p.price.toStringAsFixed(0)} • เหลือ ${p.stock} ชิ้น'),
-                      isThreeLine: true,
-                      trailing: isOwner
-                          ? PopupMenuButton<String>(
-                              onSelected: (v) {
-                                if (v == 'edit') {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              ProductFormScreen(product: p)));
-                                } else {
-                                  _confirmDelete(context, p);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
-                                PopupMenuItem(value: 'delete', child: Text('ลบ')),
-                              ],
-                            )
-                          : null,
-                    ),
-                  );
-                },
+              return ProductList(
+                items: items,
+                isOwner: isOwner,
+                onDelete: (p) => _confirmDelete(context, p),
               );
             },
           ),
