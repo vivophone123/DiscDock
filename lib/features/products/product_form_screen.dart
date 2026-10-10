@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../services/cloudinary_service.dart';
 import 'product.dart';
 import 'product_service.dart';
 
@@ -12,8 +15,11 @@ class ProductFormScreen extends StatefulWidget {
 }
 
 class _ProductFormScreenState extends State<ProductFormScreen> {
+  static const _maxImages = 5;
+
   final _formKey = GlobalKey<FormState>();
   final _service = ProductService();
+  final _cloud = CloudinaryService();
   late final TextEditingController _title;
   late final TextEditingController _price;
   late final TextEditingController _stock;
@@ -22,9 +28,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late String _condition;
   late String _region;
   late bool _hasBox;
+  late List<String> _urls; // รูปที่อัปโหลดแล้ว
+  final List<XFile> _picked = []; // รูปที่เพิ่งเลือก ยังไม่อัปโหลด
   bool _saving = false;
+  String _status = '';
 
   bool get _isEdit => widget.product != null;
+  int get _imageCount => _urls.length + _picked.length;
 
   @override
   void initState() {
@@ -38,6 +48,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _condition = p?.condition ?? 'new';
     _region = p?.region ?? 'Asia';
     _hasBox = p?.hasBox ?? true;
+    _urls = List<String>.from(p?.imageUrls ?? const []);
   }
 
   @override
@@ -49,9 +60,55 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImages() async {
+    final room = _maxImages - _imageCount;
+    if (room <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('เพิ่มรูปได้สูงสุด 5 รูป')));
+      return;
+    }
+    try {
+      final files = await ImagePicker()
+          .pickMultiImage(imageQuality: 75, maxWidth: 1280);
+      if (files.isEmpty) return;
+      setState(() => _picked.addAll(files.take(room)));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('เลือกรูปไม่สำเร็จ: $e')));
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _status = '';
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+
+    // 1) อัปโหลดรูปใหม่ไป Cloudinary
+    final allUrls = List<String>.from(_urls);
+    try {
+      for (var i = 0; i < _picked.length; i++) {
+        if (mounted) {
+          setState(() => _status = 'กำลังอัปโหลดรูป ${i + 1}/${_picked.length}');
+        }
+        allUrls.add(await _cloud.uploadImage(_picked[i]));
+      }
+    } on UploadException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) setState(() => _saving = false);
+      return;
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ: $e')));
+      if (mounted) setState(() => _saving = false);
+      return;
+    }
+
+    // 2) บันทึกลง Firestore
     final p = Product(
       id: widget.product?.id ?? '',
       title: _title.text.trim(),
@@ -62,12 +119,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       price: double.parse(_price.text),
       stock: int.parse(_stock.text),
       description: _desc.text.trim(),
-      imageUrls: widget.product?.imageUrls ?? const [],
+      imageUrls: allUrls,
     );
-    final messenger = ScaffoldMessenger.of(context);
-    final nav = Navigator.of(context);
     try {
-      // ถ้าออฟไลน์ Firestore จะรอซิงก์ จึงตั้ง timeout ไว้
       await (_isEdit ? _service.update(p) : _service.add(p))
           .timeout(const Duration(seconds: 8));
       messenger.showSnackBar(const SnackBar(content: Text('บันทึกแล้ว')));
@@ -82,6 +136,34 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
+  Widget _thumb({required Widget image, required VoidCallback onRemove}) {
+    return Stack(
+      children: [
+        Container(
+          width: 88,
+          height: 88,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey)),
+          clipBehavior: Clip.antiAlias,
+          child: image,
+        ),
+        Positioned(
+          right: 10,
+          top: 2,
+          child: GestureDetector(
+            onTap: _saving ? null : onRemove,
+            child: const CircleAvatar(
+                radius: 11,
+                backgroundColor: Colors.black87,
+                child: Icon(Icons.close, size: 14, color: Colors.white)),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +173,43 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Text('รูปสินค้า ($_imageCount/$_maxImages)'),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 92,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (var i = 0; i < _urls.length; i++)
+                    _thumb(
+                      image: Image.network(_urls[i],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.broken_image)),
+                      onRemove: () => setState(() => _urls.removeAt(i)),
+                    ),
+                  for (var i = 0; i < _picked.length; i++)
+                    _thumb(
+                      image: Image.file(File(_picked[i].path),
+                          fit: BoxFit.cover),
+                      onRemove: () => setState(() => _picked.removeAt(i)),
+                    ),
+                  InkWell(
+                    onTap: _saving ? null : _pickImages,
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey)),
+                      child: const Icon(Icons.add_photo_alternate_outlined,
+                          size: 32),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _title,
               decoration: const InputDecoration(
@@ -168,10 +287,20 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               child: FilledButton(
                 onPressed: _saving ? null : _save,
                 child: _saving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
+                          if (_status.isNotEmpty) ...[
+                            const SizedBox(width: 12),
+                            Text(_status),
+                          ],
+                        ],
+                      )
                     : const Text('บันทึก'),
               ),
             ),

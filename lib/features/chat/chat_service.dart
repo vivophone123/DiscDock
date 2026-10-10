@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 class ChatMessage {
   final String id;
   final String text;
+  final String? imageUrl;
   final String senderId;
   final bool isOwner;
   final DateTime? createdAt;
@@ -11,6 +12,7 @@ class ChatMessage {
   ChatMessage({
     required this.id,
     required this.text,
+    this.imageUrl,
     required this.senderId,
     required this.isOwner,
     this.createdAt,
@@ -21,6 +23,7 @@ class ChatMessage {
     return ChatMessage(
       id: doc.id,
       text: d['text'] ?? '',
+      imageUrl: d['imageUrl'] as String?,
       senderId: d['senderId'] ?? '',
       isOwner: d['isOwner'] ?? false,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
@@ -48,19 +51,21 @@ class ChatService {
 
   Future<void> send({
     required String roomId,
-    required String text,
+    String text = '',
+    String? imageUrl,
     required bool isOwner,
   }) {
     final user = FirebaseAuth.instance.currentUser!;
     final batch = _db.batch();
     batch.set(_room(roomId).collection('messages').doc(), {
       'text': text,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       'senderId': user.uid,
       'isOwner': isOwner,
       'createdAt': FieldValue.serverTimestamp(),
     });
     final roomData = <String, dynamic>{
-      'lastMessage': text,
+      'lastMessage': imageUrl != null ? '[รูปภาพ]' : text,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     if (!isOwner) {
