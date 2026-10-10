@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
 import '../cart/cart_screen.dart';
 import '../cart/cart_service.dart';
+import '../orders/my_orders_screen.dart';
+import '../orders/owner_orders_screen.dart';
 import 'product.dart';
 import 'product_form_screen.dart';
 import 'product_list.dart';
@@ -66,6 +68,16 @@ class HomeScreen extends StatelessWidget {
                             builder: (_) => const CartScreen())),
                   ),
                 ),
+              IconButton(
+                icon: const Icon(Icons.receipt_long_outlined),
+                tooltip: isOwner ? 'ออเดอร์ร้าน' : 'ออเดอร์ของฉัน',
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => isOwner
+                            ? const OwnerOrdersScreen()
+                            : const MyOrdersScreen())),
+              ),
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () => AuthService().logout(),
