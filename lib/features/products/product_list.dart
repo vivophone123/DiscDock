@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../cart/cart_service.dart';
 import 'product.dart';
 import 'product_form_screen.dart';
 
@@ -22,6 +23,38 @@ class _ProductListState extends State<ProductList> {
   String _query = '';
   String? _platform;
   String? _condition;
+
+  Widget? _trailing(BuildContext context, Product p) {
+    if (widget.isOwner) {
+      return PopupMenuButton<String>(
+        onSelected: (v) {
+          if (v == 'edit') {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProductFormScreen(product: p)));
+          } else {
+            widget.onDelete(p);
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
+          PopupMenuItem(value: 'delete', child: Text('ลบ')),
+        ],
+      );
+    }
+    if (p.stock == 0) return const Text('หมด');
+    return IconButton(
+      icon: const Icon(Icons.add_shopping_cart),
+      onPressed: () {
+        final ok = CartService.instance.add(p);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ok
+                ? 'เพิ่ม "${p.title}" ในตะกร้าแล้ว'
+                : 'สต๊อกมี ${p.stock} ชิ้นเท่านั้น')));
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,19 +90,22 @@ class _ProductListState extends State<ProductList> {
                   child: FilterChip(
                     label: Text(pf),
                     selected: _platform == pf,
-                    onSelected: (s) => setState(() => _platform = s ? pf : null),
+                    onSelected: (s) =>
+                        setState(() => _platform = s ? pf : null),
                   ),
                 ),
               FilterChip(
                 label: const Text('มือหนึ่ง'),
                 selected: _condition == 'new',
-                onSelected: (s) => setState(() => _condition = s ? 'new' : null),
+                onSelected: (s) =>
+                    setState(() => _condition = s ? 'new' : null),
               ),
               const SizedBox(width: 8),
               FilterChip(
                 label: const Text('มือสอง'),
                 selected: _condition == 'used',
-                onSelected: (s) => setState(() => _condition = s ? 'used' : null),
+                onSelected: (s) =>
+                    setState(() => _condition = s ? 'used' : null),
               ),
             ],
           ),
@@ -90,25 +126,7 @@ class _ProductListState extends State<ProductList> {
                             '${p.platform} • ${p.condition == 'new' ? 'มือหนึ่ง' : 'มือสอง'} • ${p.region}\n'
                             '฿${p.price.toStringAsFixed(0)} • เหลือ ${p.stock} ชิ้น'),
                         isThreeLine: true,
-                        trailing: widget.isOwner
-                            ? PopupMenuButton<String>(
-                                onSelected: (v) {
-                                  if (v == 'edit') {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                ProductFormScreen(product: p)));
-                                  } else {
-                                    widget.onDelete(p);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
-                                  PopupMenuItem(value: 'delete', child: Text('ลบ')),
-                                ],
-                              )
-                            : null,
+                        trailing: _trailing(context, p),
                       ),
                     );
                   },

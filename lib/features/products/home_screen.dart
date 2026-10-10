@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
+import '../cart/cart_screen.dart';
+import '../cart/cart_service.dart';
 import 'product.dart';
 import 'product_form_screen.dart';
 import 'product_list.dart';
@@ -49,6 +51,21 @@ class HomeScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('DiscDock'),
             actions: [
+              if (!isOwner)
+                ListenableBuilder(
+                  listenable: CartService.instance,
+                  builder: (context, _) => IconButton(
+                    icon: Badge(
+                      label: Text('${CartService.instance.count}'),
+                      isLabelVisible: CartService.instance.count > 0,
+                      child: const Icon(Icons.shopping_cart_outlined),
+                    ),
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CartScreen())),
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () => AuthService().logout(),
