@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "477256677833",
+    "project_id": "discdock-847cf",
+    "storage_bucket": "discdock-847cf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:477256677833:android:6efee28843ba49959dd018",
+        "android_client_info": {
+          "package_name": "com.example.discdock"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNobuT136zUUjtV2VWOopYuMu8qRlbZfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
