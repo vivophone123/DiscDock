@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
+import '../auth/profile_screen.dart';
 import '../cart/cart_screen.dart';
 import '../cart/cart_service.dart';
 import '../chat/chat_list_screen.dart';
@@ -45,7 +46,11 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      // บัญชีเพิ่งถูกลบ/ออกจากระบบ รอให้แอปสลับไปหน้าล็อกอิน
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream:
           FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
@@ -94,7 +99,16 @@ class HomeScreen extends StatelessWidget {
                             : const MyOrdersScreen())),
               ),
               IconButton(
+                icon: const Icon(Icons.person_outline),
+                tooltip: 'ข้อมูลสมาชิก',
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ProfileScreen())),
+              ),
+              IconButton(
                 icon: const Icon(Icons.logout),
+                tooltip: 'ออกจากระบบ',
                 onPressed: () => AuthService().logout(),
               ),
             ],
