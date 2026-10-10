@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
 import '../cart/cart_screen.dart';
 import '../cart/cart_service.dart';
+import '../chat/chat_list_screen.dart';
+import '../chat/chat_screen.dart';
 import '../orders/my_orders_screen.dart';
 import '../orders/owner_orders_screen.dart';
 import 'product.dart';
@@ -68,6 +70,19 @@ class HomeScreen extends StatelessWidget {
                             builder: (_) => const CartScreen())),
                   ),
                 ),
+              IconButton(
+                icon: const Icon(Icons.chat_bubble_outline),
+                tooltip: isOwner ? 'แชทลูกค้า' : 'แชทกับร้าน',
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => isOwner
+                            ? const ChatListScreen()
+                            : ChatScreen(
+                                roomId: uid,
+                                title: 'แชทกับร้าน',
+                                isOwner: false))),
+              ),
               IconButton(
                 icon: const Icon(Icons.receipt_long_outlined),
                 tooltip: isOwner ? 'ออเดอร์ร้าน' : 'ออเดอร์ของฉัน',
