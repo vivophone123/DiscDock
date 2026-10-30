@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../notifications/notification_service.dart';
 import 'order_model.dart';
 
 class OrderRepo {
@@ -7,11 +8,11 @@ class OrderRepo {
 
   List<OrderModel> _toList(QuerySnapshot<Map<String, dynamic>> s) {
     final list = s.docs.map(OrderModel.fromDoc).toList();
-    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    final now = DateTime.now();
     // เรียงใหม่สุดก่อน (ออเดอร์ที่เพิ่งสร้างอาจยังไม่มีเวลา ให้ถือว่าใหม่สุด)
-    list.sort((a, b) => (b.createdAt ?? DateTime.now().add(const Duration(days: 1)))
-        .compareTo(a.createdAt ?? DateTime.now().add(const Duration(days: 1))));
-    return list.where((o) => o.createdAt != epoch).toList();
+    list.sort(
+        (a, b) => (b.createdAt ?? now).compareTo(a.createdAt ?? now));
+    return list;
   }
 
   Stream<List<OrderModel>> watchMine() {
@@ -26,6 +27,19 @@ class OrderRepo {
       .snapshots()
       .map((d) => d.exists ? OrderModel.fromDoc(d) : null);
 
-  Future<void> setStatus(String id, String status) =>
-      _col.doc(id).update({'status': status});
+  Future<void> setStatus(String id, String status) async {
+    final ref = _col.doc(id);
+    await ref.update({'status': status});
+
+    final uid = (await ref.get()).data()?['userId'] as String?;
+    if (uid == null) return;
+    final short = id.substring(0, 6).toUpperCase();
+    if (status == 'paid') {
+      await NotificationService().notifyUser(uid, 'ร้านยืนยันการชำระเงินแล้ว',
+          'ออเดอร์ #$short ชำระเงินเรียบร้อย กำลังเตรียมจัดส่ง');
+    } else if (status == 'shipped') {
+      await NotificationService().notifyUser(
+          uid, 'ร้านจัดส่งสินค้าแล้ว', 'ออเดอร์ #$short ถูกจัดส่งแล้ว');
+    }
+  }
 }

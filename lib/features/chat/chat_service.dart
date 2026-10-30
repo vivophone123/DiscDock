@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../notifications/notification_service.dart';
 
 class ChatMessage {
   final String id;
@@ -54,8 +55,9 @@ class ChatService {
     String text = '',
     String? imageUrl,
     required bool isOwner,
-  }) {
+  }) async {
     final user = FirebaseAuth.instance.currentUser!;
+    final preview = imageUrl != null ? '[รูปภาพ]' : text;
     final batch = _db.batch();
     batch.set(_room(roomId).collection('messages').doc(), {
       'text': text,
@@ -65,13 +67,20 @@ class ChatService {
       'createdAt': FieldValue.serverTimestamp(),
     });
     final roomData = <String, dynamic>{
-      'lastMessage': imageUrl != null ? '[รูปภาพ]' : text,
+      'lastMessage': preview,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    if (!isOwner) {
-      roomData['customerName'] = user.displayName ?? user.email ?? 'ลูกค้า';
-    }
+    final name = user.displayName ?? user.email ?? 'ลูกค้า';
+    if (!isOwner) roomData['customerName'] = name;
     batch.set(_room(roomId), roomData, SetOptions(merge: true));
-    return batch.commit();
+    await batch.commit();
+
+    if (isOwner) {
+      await NotificationService()
+          .notifyUser(roomId, 'ร้านตอบแชทของคุณ', preview);
+    } else {
+      await NotificationService()
+          .notifyOwner('ข้อความใหม่จาก $name', preview);
+    }
   }
 }

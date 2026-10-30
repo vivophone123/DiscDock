@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../cart/cart_service.dart';
+import '../notifications/notification_service.dart';
 
 class OrderException implements Exception {
   final String message;
@@ -16,6 +17,7 @@ class OrderService {
   Future<String> placeOrder(List<CartItem> items) async {
     final user = FirebaseAuth.instance.currentUser!;
     final orderRef = _db.collection('orders').doc();
+    double grandTotal = 0;
 
     await _db.runTransaction((tx) async {
       final refs = items
@@ -67,7 +69,14 @@ class OrderService {
         'status': 'pending_payment',
         'createdAt': FieldValue.serverTimestamp(),
       });
+      grandTotal = total;
     });
+
+    await NotificationService().notifyOwner(
+      'มีออเดอร์ใหม่',
+      'ออเดอร์ #${orderRef.id.substring(0, 6).toUpperCase()} '
+          'ยอด ฿${grandTotal.toStringAsFixed(0)} รอชำระเงิน',
+    );
 
     return orderRef.id;
   }

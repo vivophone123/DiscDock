@@ -7,6 +7,8 @@ import '../cart/cart_screen.dart';
 import '../cart/cart_service.dart';
 import '../chat/chat_list_screen.dart';
 import '../chat/chat_screen.dart';
+import '../notifications/notification_service.dart';
+import '../notifications/notifications_screen.dart';
 import '../orders/my_orders_screen.dart';
 import '../orders/owner_orders_screen.dart';
 import 'product.dart';
@@ -44,6 +46,9 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
+  void _open(BuildContext context, Widget page) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -64,52 +69,68 @@ class HomeScreen extends StatelessWidget {
                 ListenableBuilder(
                   listenable: CartService.instance,
                   builder: (context, _) => IconButton(
+                    tooltip: 'ตะกร้าสินค้า',
                     icon: Badge(
                       label: Text('${CartService.instance.count}'),
                       isLabelVisible: CartService.instance.count > 0,
                       child: const Icon(Icons.shopping_cart_outlined),
                     ),
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const CartScreen())),
+                    onPressed: () => _open(context, const CartScreen()),
                   ),
                 ),
               IconButton(
                 icon: const Icon(Icons.chat_bubble_outline),
                 tooltip: isOwner ? 'แชทลูกค้า' : 'แชทกับร้าน',
-                onPressed: () => Navigator.push(
+                onPressed: () => _open(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => isOwner
-                            ? const ChatListScreen()
-                            : ChatScreen(
-                                roomId: uid,
-                                title: 'แชทกับร้าน',
-                                isOwner: false))),
+                    isOwner
+                        ? const ChatListScreen()
+                        : ChatScreen(
+                            roomId: uid,
+                            title: 'แชทกับร้าน',
+                            isOwner: false)),
               ),
-              IconButton(
-                icon: const Icon(Icons.receipt_long_outlined),
-                tooltip: isOwner ? 'ออเดอร์ร้าน' : 'ออเดอร์ของฉัน',
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => isOwner
-                            ? const OwnerOrdersScreen()
-                            : const MyOrdersScreen())),
+              StreamBuilder<int>(
+                stream: NotificationService().unreadCount(isOwner),
+                builder: (context, snap) {
+                  final n = snap.data ?? 0;
+                  return IconButton(
+                    tooltip: 'การแจ้งเตือน',
+                    icon: Badge(
+                      label: Text('$n'),
+                      isLabelVisible: n > 0,
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    onPressed: () =>
+                        _open(context, NotificationsScreen(isOwner: isOwner)),
+                  );
+                },
               ),
-              IconButton(
-                icon: const Icon(Icons.person_outline),
-                tooltip: 'ข้อมูลสมาชิก',
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const ProfileScreen())),
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'ออกจากระบบ',
-                onPressed: () => AuthService().logout(),
+              PopupMenuButton<String>(
+                tooltip: 'เมนู',
+                onSelected: (v) {
+                  switch (v) {
+                    case 'orders':
+                      _open(
+                          context,
+                          isOwner
+                              ? const OwnerOrdersScreen()
+                              : const MyOrdersScreen());
+                    case 'profile':
+                      _open(context, const ProfileScreen());
+                    case 'logout':
+                      AuthService().logout();
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                      value: 'orders',
+                      child: Text(isOwner ? 'ออเดอร์ร้าน' : 'ออเดอร์ของฉัน')),
+                  const PopupMenuItem(
+                      value: 'profile', child: Text('ข้อมูลสมาชิก')),
+                  const PopupMenuItem(
+                      value: 'logout', child: Text('ออกจากระบบ')),
+                ],
               ),
             ],
           ),
@@ -117,10 +138,7 @@ class HomeScreen extends StatelessWidget {
               ? FloatingActionButton.extended(
                   icon: const Icon(Icons.add),
                   label: const Text('เพิ่มสินค้า'),
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProductFormScreen())),
+                  onPressed: () => _open(context, const ProductFormScreen()),
                 )
               : null,
           body: StreamBuilder<List<Product>>(
