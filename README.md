@@ -95,3 +95,10 @@ lib/
 - คำนวณยอดและตัดสต๊อกที่ฝั่งแอป (ป้องกันด้วย transaction และ Security Rules) การป้องกันที่สมบูรณ์ต้องย้ายไปฝั่งเซิร์ฟเวอร์
 - การชำระเงินใช้ PromptPay QR และเจ้าของร้านยืนยันเอง ไม่ได้เชื่อม payment gateway อัตโนมัติ
 - รูปภาพอัปโหลดผ่าน Cloudinary แบบ unsigned preset
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#14131A"
+  adaptive_icon_foreground: "assets/icon/icon_fg.png"
