@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function canSee(d) {
+      return (d.get('toRole', '') == 'owner' && isOwner())
+        || d.get('toUid', '') == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role == 'customer'
+        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'role', 'createdAt']);
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.get('role', '') == resource.data.get('role', '');
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /products/{id} {
+      allow read: if signedIn();
+      allow create, delete: if isOwner();
+      allow update: if isOwner()
+        || (signedIn() && onlyChanges(['stock'])
+            && request.resource.data.stock is int
+            && request.resource.data.stock >= 0
+            && request.resource.data.stock <= resource.data.stock);
+    }
+
+    match /orders/{id} {
+      allow read: if signedIn()
+        && (isOwner() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending_payment';
+      allow update: if isOwner();
+    }
+
+    match /coupons/{code} {
+      allow get: if signedIn();
+      allow list: if isOwner();
+      allow create, delete: if isOwner();
+      allow update: if isOwner()
+        || (signedIn() && onlyChanges(['usedCount'])
+            && request.resource.data.usedCount == resource.data.usedCount + 1);
+    }
+
+    match /notifications/{id} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['toRole', 'toUid', 'title', 'body', 'read', 'createdAt'])
+        && request.resource.data.read == false;
+      allow read: if signedIn() && canSee(resource.data);
+      allow update: if signedIn() && canSee(resource.data) && onlyChanges(['read']);
+    }
+
+    match /chats/{roomId} {
+      allow read, create, update: if signedIn()
+        && (isOwner() || request.auth.uid == roomId);
+
+      match /messages/{mid} {
+        allow read: if signedIn()
+          && (isOwner() || request.auth.uid == roomId);
+        allow create: if signedIn()
+          && (isOwner() || request.auth.uid == roomId)
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.isOwner == isOwner();
+      }
+    }
+  }
+}
