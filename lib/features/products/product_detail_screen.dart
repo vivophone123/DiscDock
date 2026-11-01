@@ -25,40 +25,49 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           SizedBox(
             height: 280,
             child: p.imageUrls.isEmpty
-                ? const Center(child: Icon(Icons.image_not_supported, size: 64))
+                ? const Center(
+                    child: Icon(Icons.image_not_supported,
+                        size: 64, semanticLabel: 'ไม่มีรูปสินค้า'))
                 : PageView.builder(
                     itemCount: p.imageUrls.length,
                     onPageChanged: (i) => setState(() => _page = i),
                     itemBuilder: (_, i) => Image.network(
                       p.imageUrls[i],
+                      semanticLabel:
+                          'รูปที่ ${i + 1} จาก ${p.imageUrls.length} ของ ${p.title}',
                       fit: BoxFit.contain,
                       loadingBuilder: (c, child, prog) => prog == null
                           ? child
                           : const Center(child: CircularProgressIndicator()),
-                      errorBuilder: (_, __, ___) =>
-                          const Center(child: Icon(Icons.broken_image)),
+                      errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.broken_image,
+                              semanticLabel: 'โหลดรูปไม่สำเร็จ')),
                     ),
                   ),
           ),
           if (p.imageUrls.length > 1)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < p.imageUrls.length; i++)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == _page
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey,
+              child: Semantics(
+                label: 'รูปที่ ${_page + 1} จาก ${p.imageUrls.length}',
+                excludeSemantics: true,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < p.imageUrls.length; i++)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _page
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           Padding(

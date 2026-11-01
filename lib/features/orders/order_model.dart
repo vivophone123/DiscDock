@@ -55,6 +55,8 @@ class OrderModel {
         return 'ชำระแล้ว (เตรียมส่ง)';
       case 'shipped':
         return 'ส่งแล้ว';
+      case 'cancelled':
+        return 'ยกเลิกแล้ว';
       default:
         return status;
     }

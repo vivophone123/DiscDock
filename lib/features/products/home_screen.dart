@@ -7,6 +7,8 @@ import '../cart/cart_screen.dart';
 import '../cart/cart_service.dart';
 import '../chat/chat_list_screen.dart';
 import '../chat/chat_screen.dart';
+import '../coupons/coupons_screen.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/my_orders_screen.dart';
@@ -78,6 +80,12 @@ class HomeScreen extends StatelessWidget {
                     onPressed: () => _open(context, const CartScreen()),
                   ),
                 ),
+              if (isOwner)
+                IconButton(
+                  tooltip: 'Dashboard',
+                  icon: const Icon(Icons.dashboard_outlined),
+                  onPressed: () => _open(context, const DashboardScreen()),
+                ),
               IconButton(
                 icon: const Icon(Icons.chat_bubble_outline),
                 tooltip: isOwner ? 'แชทลูกค้า' : 'แชทกับร้าน',
@@ -116,6 +124,8 @@ class HomeScreen extends StatelessWidget {
                           isOwner
                               ? const OwnerOrdersScreen()
                               : const MyOrdersScreen());
+                    case 'coupons':
+                      _open(context, const CouponsScreen());
                     case 'profile':
                       _open(context, const ProfileScreen());
                     case 'logout':
@@ -126,6 +136,9 @@ class HomeScreen extends StatelessWidget {
                   PopupMenuItem(
                       value: 'orders',
                       child: Text(isOwner ? 'ออเดอร์ร้าน' : 'ออเดอร์ของฉัน')),
+                  if (isOwner)
+                    const PopupMenuItem(
+                        value: 'coupons', child: Text('จัดการคูปอง')),
                   const PopupMenuItem(
                       value: 'profile', child: Text('ข้อมูลสมาชิก')),
                   const PopupMenuItem(

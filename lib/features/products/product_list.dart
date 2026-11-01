@@ -28,6 +28,7 @@ class _ProductListState extends State<ProductList> {
   Widget? _trailing(BuildContext context, Product p) {
     if (widget.isOwner) {
       return PopupMenuButton<String>(
+        tooltip: 'จัดการสินค้า ${p.title}',
         onSelected: (v) {
           if (v == 'edit') {
             Navigator.push(
@@ -46,6 +47,7 @@ class _ProductListState extends State<ProductList> {
     }
     if (p.stock == 0) return const Text('หมด');
     return IconButton(
+      tooltip: 'ใส่ ${p.title} ลงตะกร้า',
       icon: const Icon(Icons.add_shopping_cart),
       onPressed: () {
         final ok = CartService.instance.add(p);
@@ -61,17 +63,22 @@ class _ProductListState extends State<ProductList> {
     const size = 56.0;
     if (p.imageUrls.isEmpty) {
       return const SizedBox(
-          width: size, height: size, child: Icon(Icons.album, size: 32));
+          width: size,
+          height: size,
+          child: Icon(Icons.album, size: 32, semanticLabel: 'ไม่มีรูปสินค้า'));
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: Image.network(
         p.imageUrls.first,
+        semanticLabel: 'รูปปก ${p.title}',
         width: size,
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const SizedBox(
-            width: size, height: size, child: Icon(Icons.broken_image)),
+            width: size,
+            height: size,
+            child: Icon(Icons.broken_image, semanticLabel: 'โหลดรูปไม่สำเร็จ')),
       ),
     );
   }

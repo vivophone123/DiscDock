@@ -50,8 +50,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImage() async {
     try {
-      final file = await ImagePicker()
-          .pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 1280);
+      final file = await ImagePicker().pickImage(
+          source: ImageSource.gallery, imageQuality: 75, maxWidth: 1280);
       if (file == null) return;
       setState(() => _uploading = true);
       final url = await _cloud.uploadImage(file);
@@ -64,6 +64,11 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  String _speaker(ChatMessage m, bool mine) {
+    if (mine) return 'คุณ';
+    return m.isOwner ? 'ร้าน' : 'ลูกค้า';
   }
 
   @override
@@ -98,45 +103,55 @@ class _ChatScreenState extends State<ChatScreen> {
                     return Align(
                       alignment:
                           mine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.all(8),
-                        constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75),
-                        decoration: BoxDecoration(
-                          color: mine
-                              ? scheme.primaryContainer
-                              : scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: m.imageUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  m.imageUrl!,
-                                  width: 200,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (c, child, prog) =>
-                                      prog == null
-                                          ? child
-                                          : const SizedBox(
-                                              width: 200,
-                                              height: 120,
-                                              child: Center(
-                                                  child:
-                                                      CircularProgressIndicator())),
-                                  errorBuilder: (_, __, ___) => const SizedBox(
-                                      width: 200,
-                                      height: 80,
-                                      child: Center(
-                                          child: Text('โหลดรูปไม่สำเร็จ'))),
+                      child: Semantics(
+                        container: true,
+                        excludeSemantics: true,
+                        label:
+                            '${_speaker(m, mine)}: ${m.imageUrl != null ? 'ส่งรูปภาพ' : m.text}',
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.all(8),
+                          constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? scheme.primaryContainer
+                                : scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: m.imageUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    m.imageUrl!,
+                                    semanticLabel: 'รูปภาพในแชท',
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (c, child, prog) =>
+                                        prog == null
+                                            ? child
+                                            : const SizedBox(
+                                                width: 200,
+                                                height: 120,
+                                                child: Center(
+                                                    child:
+                                                        CircularProgressIndicator())),
+                                    errorBuilder: (_, __, ___) =>
+                                        const SizedBox(
+                                            width: 200,
+                                            height: 80,
+                                            child: Center(
+                                                child:
+                                                    Text('โหลดรูปไม่สำเร็จ'))),
+                                  ),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 2),
+                                  child: Text(m.text),
                                 ),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 2),
-                                child: Text(m.text),
-                              ),
+                        ),
                       ),
                     );
                   },
@@ -151,6 +166,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'แนบรูปภาพ',
                     icon: const Icon(Icons.image_outlined),
                     onPressed: _uploading ? null : _sendImage,
                   ),
@@ -168,6 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
+                    tooltip: 'ส่งข้อความ',
                     icon: const Icon(Icons.send),
                     onPressed: _send,
                   ),
