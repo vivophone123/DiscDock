@@ -2,8 +2,7 @@
 
 แอปร้านขายแผ่นเกมขนาดเล็ก (PS5 / PS4 / Nintendo Switch ทั้งมือหนึ่งและมือสอง) สำหรับวิชา Advanced Computer Programming ประเภท Micro-commerce พัฒนาด้วย Flutter และ Firebase ทำงานบนอุปกรณ์ Android จริง
 
-- **ไฟล์ติดตั้ง (APK):** <ลิงก์ GitHub Releases หรือ Google Drive>
-- **คลิปสาธิต:** <ลิงก์วิดีโอ ถ้ามี>
+- **ไฟล์ติดตั้ง (APK):** -https://github.com/vivophone123/DiscDock/releases/tag/v1.0
 
 ## ปัญหาที่แอปแก้
 
@@ -95,10 +94,3 @@ lib/
 - คำนวณยอดและตัดสต๊อกที่ฝั่งแอป (ป้องกันด้วย transaction และ Security Rules) การป้องกันที่สมบูรณ์ต้องย้ายไปฝั่งเซิร์ฟเวอร์
 - การชำระเงินใช้ PromptPay QR และเจ้าของร้านยืนยันเอง ไม่ได้เชื่อม payment gateway อัตโนมัติ
 - รูปภาพอัปโหลดผ่าน Cloudinary แบบ unsigned preset
-
-flutter_launcher_icons:
-  android: true
-  ios: false
-  image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#14131A"
-  adaptive_icon_foreground: "assets/icon/icon_fg.png"
