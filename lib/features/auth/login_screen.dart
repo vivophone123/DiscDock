@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isRegister = false;
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
   @override
@@ -44,6 +45,32 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await _auth.login(_email.text.trim(), _password.text);
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = AuthService.message(e));
+    } catch (_) {
+      setState(() => _error = 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    if (!email.contains('@')) {
+      setState(() =>
+          _error = 'กรอกอีเมลในช่องด้านบนก่อน แล้วกดลืมรหัสผ่านอีกครั้ง');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await _auth.resetPassword(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'หากอีเมลนี้ลงทะเบียนไว้ ระบบจะส่งลิงก์รีเซ็ตรหัสผ่านให้ (ตรวจสอบกล่องสแปมด้วย)')));
     } on FirebaseAuthException catch (e) {
       setState(() => _error = AuthService.message(e));
     } catch (_) {
@@ -91,20 +118,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _password,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'รหัสผ่าน', border: OutlineInputBorder()),
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      labelText: 'รหัสผ่าน',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        tooltip: _obscure ? 'แสดงรหัสผ่าน' : 'ซ่อนรหัสผ่าน',
+                        icon: Icon(_obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
                     validator: (v) => (v == null || v.length < 6)
                         ? 'อย่างน้อย 6 ตัวอักษร'
                         : null,
                   ),
+                  if (!_isRegister)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading ? null : _resetPassword,
+                        child: const Text('ลืมรหัสผ่าน?'),
+                      ),
+                    ),
                   if (_error != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(_error!,
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.error)),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 48,

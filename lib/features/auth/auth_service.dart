@@ -30,6 +30,10 @@ class AuthService {
 
   Future<void> logout() => _auth.signOut();
 
+  /// ส่งอีเมลลิงก์รีเซ็ตรหัสผ่าน
+  Future<void> resetPassword(String email) =>
+      _auth.sendPasswordResetEmail(email: email);
+
   /// อ่านข้อมูลโปรไฟล์จาก Firestore
   Future<Map<String, dynamic>?> getProfile() async {
     final doc =

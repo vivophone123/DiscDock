@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../cart/cart_service.dart';
+import '../chat/chat_screen.dart';
 import 'product.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -18,6 +20,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
       appBar: AppBar(title: Text(p.title)),
       body: ListView(
@@ -109,6 +112,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             },
                     ),
                   ),
+                  if (uid != null) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('แชทถามร้านเกี่ยวกับเกมนี้'),
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                    roomId: uid,
+                                    title: 'แชทกับร้าน',
+                                    isOwner: false))),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
