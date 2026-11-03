@@ -12,17 +12,33 @@ class OrderModel {
   final String id;
   final String userId;
   final List<OrderLine> items;
+  final double subtotal;
+  final double discount;
+  final String couponCode;
   final double total;
   final String status;
   final DateTime? createdAt;
+  final String shipName;
+  final String shipPhone;
+  final String shipAddress;
+  final String carrier;
+  final String trackingNumber;
 
   OrderModel({
     required this.id,
     required this.userId,
     required this.items,
+    required this.subtotal,
+    required this.discount,
+    required this.couponCode,
     required this.total,
     required this.status,
     this.createdAt,
+    this.shipName = '',
+    this.shipPhone = '',
+    this.shipAddress = '',
+    this.carrier = '',
+    this.trackingNumber = '',
   });
 
   factory OrderModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -35,17 +51,30 @@ class OrderModel {
               (e['qty'] ?? 0).toInt(),
             ))
         .toList();
+    final ship = (d['shipping'] as Map?) ?? {};
+    final total = (d['total'] ?? 0).toDouble();
     return OrderModel(
       id: doc.id,
       userId: d['userId'] ?? '',
       items: lines,
-      total: (d['total'] ?? 0).toDouble(),
+      subtotal: (d['subtotal'] ?? total).toDouble(),
+      discount: (d['discount'] ?? 0).toDouble(),
+      couponCode: (d['couponCode'] ?? '').toString(),
+      total: total,
       status: d['status'] ?? 'pending_payment',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      shipName: (ship['name'] ?? '').toString(),
+      shipPhone: (ship['phone'] ?? '').toString(),
+      shipAddress: (ship['address'] ?? '').toString(),
+      carrier: (d['carrier'] ?? '').toString(),
+      trackingNumber: (d['trackingNumber'] ?? '').toString(),
     );
   }
 
   String get shortId => id.substring(0, 6).toUpperCase();
+
+  bool get hasShipping => shipAddress.isNotEmpty;
+  bool get hasTracking => trackingNumber.isNotEmpty;
 
   String get statusText {
     switch (status) {
@@ -55,8 +84,6 @@ class OrderModel {
         return 'ชำระแล้ว (เตรียมส่ง)';
       case 'shipped':
         return 'ส่งแล้ว';
-      case 'cancelled':
-        return 'ยกเลิกแล้ว';
       default:
         return status;
     }

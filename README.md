@@ -65,7 +65,7 @@ lib/
 |---|---|
 | `users/{uid}` | name, email, phone, role (customer/owner), createdAt, updatedAt |
 | `products/{id}` | title, platform, condition, region, hasBox, price, stock, description, imageUrls[], createdAt |
-| `orders/{id}` | userId, items[], subtotal, discount, couponCode, total, status, createdAt |
+| `orders/{id}` | userId, items[], subtotal, discount, couponCode, total, shipping{name,phone,address}, status, carrier, trackingNumber, createdAt |
 | `coupons/{code}` | type (percent/fixed), value, minSpend, maxUses, usedCount, active |
 | `chats/{customerUid}` | customerName, lastMessage, updatedAt และ `messages/{id}`: text, imageUrl, senderId, isOwner, createdAt |
 | `notifications/{id}` | toUid หรือ toRole, title, body, read, createdAt |

@@ -16,7 +16,12 @@ class OrderService {
 
   /// สร้างออเดอร์ หักสต๊อก และใช้คูปองในขั้นตอนเดียว
   /// (ถ้าสต๊อกหรือคูปองไม่ผ่าน จะไม่สร้างอะไรเลย)
-  Future<String> placeOrder(List<CartItem> items, {String? couponCode}) async {
+  /// shipping = {name, phone, address}
+  Future<String> placeOrder(
+    List<CartItem> items, {
+    String? couponCode,
+    required Map<String, String> shipping,
+  }) async {
     final user = FirebaseAuth.instance.currentUser!;
     final orderRef = _db.collection('orders').doc();
     double finalTotal = 0;
@@ -90,6 +95,11 @@ class OrderService {
         'discount': discount,
         'couponCode': couponRef?.id,
         'total': total,
+        'shipping': {
+          'name': shipping['name'] ?? '',
+          'phone': shipping['phone'] ?? '',
+          'address': shipping['address'] ?? '',
+        },
         'status': 'pending_payment',
         'createdAt': FieldValue.serverTimestamp(),
       });

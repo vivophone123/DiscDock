@@ -1,19 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'order_model.dart';
 import 'order_repo.dart';
+
+const _carriers = [
+  'ไปรษณีย์ไทย',
+  'Kerry Express',
+  'Flash Express',
+  'J&T Express',
+  'อื่นๆ',
+];
 
 class OwnerOrdersScreen extends StatelessWidget {
   const OwnerOrdersScreen({super.key});
 
-  Future<void> _set(BuildContext context, String id, String status) async {
+  void _snack(BuildContext context, String m) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Future<void> _markPaid(BuildContext context, OrderModel o) async {
     try {
-      await OrderRepo().setStatus(id, status);
+      await OrderRepo().setStatus(o.id, 'paid');
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('อัปเดตไม่สำเร็จ: $e')));
-      }
+      _snack(context, 'อัปเดตไม่สำเร็จ: $e');
     }
+  }
+
+  Future<void> _ship(BuildContext context, OrderModel o) async {
+    final r = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => const _ShipDialog(),
+    );
+    if (r == null) return;
+    try {
+      await OrderRepo().markShipped(o.id,
+          carrier: r['carrier']!, trackingNumber: r['tracking']!);
+    } catch (e) {
+      _snack(context, 'อัปเดตไม่สำเร็จ: $e');
+    }
+  }
+
+  void _copyAddress(BuildContext context, OrderModel o) {
+    Clipboard.setData(ClipboardData(
+        text: '${o.shipName} ${o.shipPhone}\n${o.shipAddress}'));
+    _snack(context, 'คัดลอกที่อยู่แล้ว');
   }
 
   @override
@@ -52,17 +83,53 @@ class OwnerOrdersScreen extends StatelessWidget {
                       for (final l in o.items)
                         Text('${l.title} (${l.platform}) x${l.qty}'),
                       const SizedBox(height: 4),
-                      Text('ยอดรวม ฿${o.total.toStringAsFixed(0)}'),
+                      Text(
+                          'ยอดรวม ฿${o.total.toStringAsFixed(0)}'
+                          '${o.discount > 0 ? ' (ลด ฿${o.discount.toStringAsFixed(0)})' : ''}'),
+                      const Divider(height: 20),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 18),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: o.hasShipping
+                                ? Text(
+                                    '${o.shipName} • ${o.shipPhone}\n${o.shipAddress}')
+                                : const Text('ไม่มีข้อมูลที่อยู่ (ออเดอร์เก่า)'),
+                          ),
+                          if (o.hasShipping)
+                            IconButton(
+                              tooltip: 'คัดลอกที่อยู่',
+                              icon: const Icon(Icons.copy, size: 18),
+                              onPressed: () => _copyAddress(context, o),
+                            ),
+                        ],
+                      ),
+                      if (o.hasTracking) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.local_shipping_outlined,
+                                size: 18),
+                            const SizedBox(width: 6),
+                            Expanded(
+                                child: Text(
+                                    '${o.carrier}: ${o.trackingNumber}')),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       if (o.status == 'pending_payment')
                         FilledButton(
-                          onPressed: () => _set(context, o.id, 'paid'),
+                          onPressed: () => _markPaid(context, o),
                           child: const Text('ยืนยันได้รับเงินแล้ว'),
                         ),
                       if (o.status == 'paid')
-                        FilledButton(
-                          onPressed: () => _set(context, o.id, 'shipped'),
-                          child: const Text('ทำเครื่องหมายว่าส่งแล้ว'),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.local_shipping_outlined),
+                          onPressed: () => _ship(context, o),
+                          label: const Text('จัดส่งแล้ว (ใส่เลขพัสดุ)'),
                         ),
                     ],
                   ),
@@ -72,6 +139,77 @@ class OwnerOrdersScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// กล่องกรอกขนส่งและเลขพัสดุ
+class _ShipDialog extends StatefulWidget {
+  const _ShipDialog();
+
+  @override
+  State<_ShipDialog> createState() => _ShipDialogState();
+}
+
+class _ShipDialogState extends State<_ShipDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _tracking = TextEditingController();
+  String _carrier = _carriers.first;
+
+  @override
+  void dispose() {
+    _tracking.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('ข้อมูลการจัดส่ง'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _carrier,
+              decoration: const InputDecoration(
+                  labelText: 'ขนส่ง', border: OutlineInputBorder()),
+              items: [
+                for (final c in _carriers)
+                  DropdownMenuItem(value: c, child: Text(c)),
+              ],
+              onChanged: (v) => setState(() => _carrier = v!),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _tracking,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                  labelText: 'เลขพัสดุ', border: OutlineInputBorder()),
+              validator: (v) =>
+                  RegExp(r'^[A-Za-z0-9-]{6,30}$').hasMatch((v ?? '').trim())
+                      ? null
+                      : 'เลขพัสดุเป็นตัวอักษร/ตัวเลข 6-30 ตัว',
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก')),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(context, {
+              'carrier': _carrier,
+              'tracking': _tracking.text.trim().toUpperCase(),
+            });
+          },
+          child: const Text('ยืนยัน'),
+        ),
+      ],
     );
   }
 }

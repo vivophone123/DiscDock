@@ -37,9 +37,29 @@ class OrderRepo {
     if (status == 'paid') {
       await NotificationService().notifyUser(uid, 'ร้านยืนยันการชำระเงินแล้ว',
           'ออเดอร์ #$short ชำระเงินเรียบร้อย กำลังเตรียมจัดส่ง');
-    } else if (status == 'shipped') {
-      await NotificationService().notifyUser(
-          uid, 'ร้านจัดส่งสินค้าแล้ว', 'ออเดอร์ #$short ถูกจัดส่งแล้ว');
     }
+  }
+
+  /// ทำเครื่องหมายว่าส่งแล้ว พร้อมขนส่งและเลขพัสดุ
+  Future<void> markShipped(
+    String id, {
+    required String carrier,
+    required String trackingNumber,
+  }) async {
+    final ref = _col.doc(id);
+    await ref.update({
+      'status': 'shipped',
+      'carrier': carrier,
+      'trackingNumber': trackingNumber,
+      'shippedAt': FieldValue.serverTimestamp(),
+    });
+
+    final uid = (await ref.get()).data()?['userId'] as String?;
+    if (uid == null) return;
+    final short = id.substring(0, 6).toUpperCase();
+    await NotificationService().notifyUser(
+        uid,
+        'ร้านจัดส่งสินค้าแล้ว',
+        'ออเดอร์ #$short ส่งทาง $carrier เลขพัสดุ $trackingNumber');
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/constants/shop_config.dart';
 import '../../core/utils/promptpay.dart';
@@ -9,10 +10,23 @@ class PaymentScreen extends StatelessWidget {
   final String orderId;
   const PaymentScreen({super.key, required this.orderId});
 
+  Widget _line(String label, String value, {bool bold = false}) {
+    final style = TextStyle(
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        fontSize: bold ? 17 : 14);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [Text(label, style: style), Text(value, style: style)],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ชำระเงิน')),
+      appBar: AppBar(title: const Text('รายละเอียดออเดอร์')),
       body: StreamBuilder<OrderModel?>(
         stream: OrderRepo().watchOne(orderId),
         builder: (context, snap) {
@@ -58,23 +72,68 @@ class PaymentScreen extends StatelessWidget {
                 Center(
                   child: Column(
                     children: [
-                      const Icon(Icons.check_circle,
-                          color: Colors.green, size: 72),
+                      Icon(
+                          o.status == 'shipped'
+                              ? Icons.local_shipping
+                              : Icons.check_circle,
+                          color: Colors.green,
+                          size: 72),
                       const SizedBox(height: 8),
                       Text(o.statusText,
                           style: const TextStyle(fontSize: 18)),
                     ],
                   ),
                 ),
+              if (o.hasTracking) ...[
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.local_shipping_outlined),
+                    title: Text('เลขพัสดุ ${o.trackingNumber}'),
+                    subtitle: Text('ขนส่ง: ${o.carrier}'),
+                    trailing: IconButton(
+                      tooltip: 'คัดลอกเลขพัสดุ',
+                      icon: const Icon(Icons.copy),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: o.trackingNumber));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('คัดลอกเลขพัสดุแล้ว')));
+                      },
+                    ),
+                  ),
+                ),
+              ],
               const Divider(height: 32),
               for (final l in o.items)
                 ListTile(
                   dense: true,
+                  contentPadding: EdgeInsets.zero,
                   title: Text(l.title),
                   subtitle: Text(l.platform),
                   trailing:
                       Text('฿${l.price.toStringAsFixed(0)} x ${l.qty}'),
                 ),
+              const SizedBox(height: 8),
+              if (o.discount > 0) ...[
+                _line('ยอดสินค้า', '฿${o.subtotal.toStringAsFixed(0)}'),
+                _line(
+                    o.couponCode.isEmpty
+                        ? 'ส่วนลด'
+                        : 'ส่วนลด (${o.couponCode})',
+                    '-฿${o.discount.toStringAsFixed(0)}'),
+              ],
+              _line('ยอดสุทธิ', '฿${o.total.toStringAsFixed(0)}', bold: true),
+              const Divider(height: 32),
+              const Text('ที่อยู่จัดส่ง',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              if (o.hasShipping) ...[
+                Text('${o.shipName} • ${o.shipPhone}'),
+                Text(o.shipAddress),
+              ] else
+                const Text('ไม่มีข้อมูลที่อยู่ (ออเดอร์เก่า)'),
             ],
           );
         },
