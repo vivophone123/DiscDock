@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'order_model.dart';
 import 'order_repo.dart';
+import 'slip_viewer.dart';
 
 const _carriers = [
   'ไปรษณีย์ไทย',
@@ -45,6 +46,35 @@ class OwnerOrdersScreen extends StatelessWidget {
     Clipboard.setData(ClipboardData(
         text: '${o.shipName} ${o.shipPhone}\n${o.shipAddress}'));
     _snack(context, 'คัดลอกที่อยู่แล้ว');
+  }
+
+  Widget _slipRow(BuildContext context, OrderModel o) {
+    if (!o.hasSlip) {
+      return Text(
+          o.status == 'pending_payment' ? 'ยังไม่มีสลิปการโอน' : 'ไม่มีสลิปแนบ',
+          style: Theme.of(context).textTheme.bodySmall);
+    }
+    return InkWell(
+      onTap: () => showSlip(context, o.slipUrl),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.network(
+              o.slipUrl,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              semanticLabel: 'รูปสลิปการโอนเงิน',
+              errorBuilder: (_, __, ___) => const SizedBox(
+                  width: 56, height: 56, child: Icon(Icons.broken_image)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('ลูกค้าแนบสลิปแล้ว (แตะเพื่อดู)')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -106,6 +136,8 @@ class OwnerOrdersScreen extends StatelessWidget {
                             ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      _slipRow(context, o),
                       if (o.hasTracking) ...[
                         const SizedBox(height: 6),
                         Row(

@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../services/cloudinary_service.dart';
 import 'auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,8 +18,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   String _email = '';
+  String _photoUrl = '';
   bool _loading = true;
   bool _busy = false;
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -42,10 +47,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _name.text = d?['name'] ?? '';
       _phone.text = d?['phone'] ?? '';
       _email = d?['email'] ?? _auth.currentUser?.email ?? '';
+      _photoUrl = (d?['photoUrl'] ?? '').toString();
     } catch (e) {
       _snack('โหลดข้อมูลไม่สำเร็จ: $e');
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _changePhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 75,
+          maxWidth: 512,
+          maxHeight: 512);
+      if (file == null) return;
+      setState(() => _uploadingPhoto = true);
+      final url = await CloudinaryService().uploadImage(file);
+      final uid = _auth.currentUser!.uid;
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'photoUrl': url,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) setState(() => _photoUrl = url);
+      _snack('เปลี่ยนรูปโปรไฟล์แล้ว');
+    } on UploadException catch (e) {
+      _snack(e.message);
+    } on FirebaseException catch (e) {
+      _snack('บันทึกรูปไม่สำเร็จ (${e.code})');
+    } catch (e) {
+      _snack('เปลี่ยนรูปไม่สำเร็จ: $e');
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
   }
 
   Future<void> _save() async {
@@ -113,6 +147,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) setState(() => _busy = false);
   }
 
+  Widget _avatar() {
+    return Center(
+      child: Semantics(
+        label: 'รูปโปรไฟล์',
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircleAvatar(
+              radius: 52,
+              backgroundImage:
+                  _photoUrl.isNotEmpty ? NetworkImage(_photoUrl) : null,
+              child: _photoUrl.isEmpty
+                  ? const Icon(Icons.person, size: 52)
+                  : null,
+            ),
+            if (_uploadingPhoto)
+              const SizedBox(
+                  width: 104,
+                  height: 104,
+                  child: CircularProgressIndicator(strokeWidth: 3)),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: IconButton.filled(
+                tooltip: 'เปลี่ยนรูปโปรไฟล์',
+                icon: const Icon(Icons.camera_alt, size: 18),
+                onPressed: (_busy || _uploadingPhoto) ? null : _changePhoto,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,6 +193,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  _avatar(),
+                  const SizedBox(height: 20),
                   TextFormField(
                     initialValue: _email,
                     enabled: false,

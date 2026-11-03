@@ -1,14 +1,49 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/constants/shop_config.dart';
 import '../../core/utils/promptpay.dart';
+import '../../services/cloudinary_service.dart';
 import 'order_model.dart';
 import 'order_repo.dart';
+import 'slip_viewer.dart';
 
-class PaymentScreen extends StatelessWidget {
+class PaymentScreen extends StatefulWidget {
   final String orderId;
   const PaymentScreen({super.key, required this.orderId});
+
+  @override
+  State<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends State<PaymentScreen> {
+  final _cloud = CloudinaryService();
+  bool _uploading = false;
+
+  Future<void> _attachSlip() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = await ImagePicker().pickImage(
+          source: ImageSource.gallery, imageQuality: 80, maxWidth: 1600);
+      if (file == null) return;
+      setState(() => _uploading = true);
+      final url = await _cloud.uploadImage(file);
+      await OrderRepo().attachSlip(widget.orderId, url);
+      messenger.showSnackBar(
+          const SnackBar(content: Text('ส่งสลิปแล้ว รอร้านตรวจสอบ')));
+    } on UploadException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } on FirebaseException catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('ส่งสลิปไม่สำเร็จ (${e.code})')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('ส่งสลิปไม่สำเร็จ: $e')));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
 
   Widget _line(String label, String value, {bool bold = false}) {
     final style = TextStyle(
@@ -23,12 +58,34 @@ class PaymentScreen extends StatelessWidget {
     );
   }
 
+  Widget _slipCard(OrderModel o, {required bool pending}) {
+    return Card(
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.network(
+            o.slipUrl,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            semanticLabel: 'รูปสลิปการโอนเงิน',
+            errorBuilder: (_, __, ___) =>
+                const SizedBox(width: 48, height: 48, child: Icon(Icons.broken_image)),
+          ),
+        ),
+        title: Text(pending ? 'ส่งสลิปแล้ว รอร้านตรวจสอบ' : 'สลิปการโอนเงิน'),
+        subtitle: const Text('แตะเพื่อดูสลิป'),
+        onTap: () => showSlip(context, o.slipUrl),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('รายละเอียดออเดอร์')),
       body: StreamBuilder<OrderModel?>(
-        stream: OrderRepo().watchOne(orderId),
+        stream: OrderRepo().watchOne(widget.orderId),
         builder: (context, snap) {
           if (snap.hasError) {
             return const Center(child: Text('โหลดออเดอร์ไม่สำเร็จ'));
@@ -64,11 +121,22 @@ class PaymentScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Center(
                   child: Text(
-                    'สแกนด้วยแอปธนาคาร แล้วรอร้านยืนยัน\nหน้านี้จะอัปเดตสถานะอัตโนมัติ',
+                    'สแกนด้วยแอปธนาคาร โอนเสร็จแล้วแนบสลิปด้านล่าง\nหน้านี้จะอัปเดตสถานะอัตโนมัติเมื่อร้านยืนยัน',
                     textAlign: TextAlign.center,
                   ),
                 ),
-              ] else
+                const SizedBox(height: 16),
+                if (o.hasSlip) _slipCard(o, pending: true),
+                if (_uploading) const LinearProgressIndicator(),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: Text(o.hasSlip ? 'เปลี่ยนสลิป' : 'แนบสลิปการโอน'),
+                    onPressed: _uploading ? null : _attachSlip,
+                  ),
+                ),
+              ] else ...[
                 Center(
                   child: Column(
                     children: [
@@ -84,6 +152,11 @@ class PaymentScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (o.hasSlip) ...[
+                  const SizedBox(height: 12),
+                  _slipCard(o, pending: false),
+                ],
+              ],
               if (o.hasTracking) ...[
                 const SizedBox(height: 16),
                 Card(

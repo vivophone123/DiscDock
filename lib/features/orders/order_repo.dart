@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/constants/email_config.dart';
 import '../../services/email_service.dart';
 import '../notifications/notification_service.dart';
 import 'order_model.dart';
@@ -28,6 +29,23 @@ class OrderRepo {
       .doc(id)
       .snapshots()
       .map((d) => d.exists ? OrderModel.fromDoc(d) : null);
+
+  /// ลูกค้าแนบสลิปการโอน (ใช้ได้เมื่อออเดอร์ยังรอชำระ)
+  Future<void> attachSlip(String id, String url) async {
+    await _col.doc(id).update({
+      'slipUrl': url,
+      'slipAt': FieldValue.serverTimestamp(),
+    });
+    final short = id.substring(0, 6).toUpperCase();
+    await NotificationService().notifyOwner('ลูกค้าแนบสลิปการโอน',
+        'ออเดอร์ #$short แนบสลิปแล้ว กรุณาตรวจสอบและยืนยันรับเงิน');
+    unawaited(EmailService.send(
+      to: ownerEmail,
+      subject: 'DiscDock: ลูกค้าแนบสลิป #$short',
+      message: 'ออเดอร์ #$short มีการแนบสลิปการโอนเงิน\n'
+          'กรุณาตรวจสอบในแอป แล้วกดยืนยันรับเงิน',
+    ));
+  }
 
   Future<void> setStatus(String id, String status) async {
     final ref = _col.doc(id);

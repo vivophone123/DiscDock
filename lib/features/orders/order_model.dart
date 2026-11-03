@@ -23,6 +23,7 @@ class OrderModel {
   final String shipAddress;
   final String carrier;
   final String trackingNumber;
+  final String slipUrl;
 
   OrderModel({
     required this.id,
@@ -39,6 +40,7 @@ class OrderModel {
     this.shipAddress = '',
     this.carrier = '',
     this.trackingNumber = '',
+    this.slipUrl = '',
   });
 
   factory OrderModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -68,6 +70,7 @@ class OrderModel {
       shipAddress: (ship['address'] ?? '').toString(),
       carrier: (d['carrier'] ?? '').toString(),
       trackingNumber: (d['trackingNumber'] ?? '').toString(),
+      slipUrl: (d['slipUrl'] ?? '').toString(),
     );
   }
 
@@ -75,6 +78,7 @@ class OrderModel {
 
   bool get hasShipping => shipAddress.isNotEmpty;
   bool get hasTracking => trackingNumber.isNotEmpty;
+  bool get hasSlip => slipUrl.isNotEmpty;
 
   String get statusText {
     switch (status) {

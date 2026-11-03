@@ -48,7 +48,19 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
+  Widget _avatar(dynamic url) {
+    final u = (url ?? '').toString();
+    return CircleAvatar(
+      radius: 15,
+      backgroundImage: u.isNotEmpty ? NetworkImage(u) : null,
+      child: u.isEmpty ? const Icon(Icons.person_outline, size: 18) : null,
+    );
+  }
+
   void _open(BuildContext context, Widget page) =>
+    
+
+  
       Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   @override
@@ -116,6 +128,7 @@ class HomeScreen extends StatelessWidget {
               ),
               PopupMenuButton<String>(
                 tooltip: 'เมนู',
+                icon: _avatar(userSnap.data?.data()?['photoUrl']),
                 onSelected: (v) {
                   switch (v) {
                     case 'orders':
