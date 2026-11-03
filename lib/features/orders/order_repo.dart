@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/email_service.dart';
 import '../notifications/notification_service.dart';
 import 'order_model.dart';
 
@@ -31,12 +33,19 @@ class OrderRepo {
     final ref = _col.doc(id);
     await ref.update({'status': status});
 
-    final uid = (await ref.get()).data()?['userId'] as String?;
+    final data = (await ref.get()).data();
+    final uid = data?['userId'] as String?;
     if (uid == null) return;
     final short = id.substring(0, 6).toUpperCase();
     if (status == 'paid') {
       await NotificationService().notifyUser(uid, 'ร้านยืนยันการชำระเงินแล้ว',
           'ออเดอร์ #$short ชำระเงินเรียบร้อย กำลังเตรียมจัดส่ง');
+      unawaited(EmailService.send(
+        to: (data?['customerEmail'] ?? '').toString(),
+        subject: 'DiscDock: ยืนยันการชำระเงิน #$short',
+        message: 'ร้านได้รับการชำระเงินของออเดอร์ #$short เรียบร้อยแล้ว\n'
+            'กำลังเตรียมจัดส่งสินค้า ขอบคุณที่ใช้บริการ DiscDock',
+      ));
     }
   }
 
@@ -54,12 +63,20 @@ class OrderRepo {
       'shippedAt': FieldValue.serverTimestamp(),
     });
 
-    final uid = (await ref.get()).data()?['userId'] as String?;
+    final data = (await ref.get()).data();
+    final uid = data?['userId'] as String?;
     if (uid == null) return;
     final short = id.substring(0, 6).toUpperCase();
     await NotificationService().notifyUser(
         uid,
         'ร้านจัดส่งสินค้าแล้ว',
         'ออเดอร์ #$short ส่งทาง $carrier เลขพัสดุ $trackingNumber');
+    unawaited(EmailService.send(
+      to: (data?['customerEmail'] ?? '').toString(),
+      subject: 'DiscDock: จัดส่งสินค้าแล้ว #$short',
+      message: 'ออเดอร์ #$short ถูกจัดส่งแล้ว\n\n'
+          'ขนส่ง: $carrier\nเลขพัสดุ: $trackingNumber\n\n'
+          'ขอบคุณที่ใช้บริการ DiscDock',
+    ));
   }
 }

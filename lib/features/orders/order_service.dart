@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/constants/email_config.dart';
+import '../../services/email_service.dart';
 import '../cart/cart_service.dart';
 import '../coupons/coupon_service.dart';
 import '../notifications/notification_service.dart';
@@ -23,6 +26,7 @@ class OrderService {
     required Map<String, String> shipping,
   }) async {
     final user = FirebaseAuth.instance.currentUser!;
+    final customerEmail = user.email ?? '';
     final orderRef = _db.collection('orders').doc();
     double finalTotal = 0;
 
@@ -90,6 +94,7 @@ class OrderService {
       }
       tx.set(orderRef, {
         'userId': user.uid,
+        'customerEmail': customerEmail,
         'items': lines,
         'subtotal': subtotal,
         'discount': discount,
@@ -106,11 +111,34 @@ class OrderService {
       finalTotal = total;
     });
 
+    final short = orderRef.id.substring(0, 6).toUpperCase();
     await NotificationService().notifyOwner(
       'มีออเดอร์ใหม่',
-      'ออเดอร์ #${orderRef.id.substring(0, 6).toUpperCase()} '
-          'ยอด ฿${finalTotal.toStringAsFixed(0)} รอชำระเงิน',
+      'ออเดอร์ #$short ยอด ฿${finalTotal.toStringAsFixed(0)} รอชำระเงิน',
     );
+
+    // ส่งอีเมล (ไม่รอผล เพื่อไม่ให้หน้าจอค้าง และไม่กระทบการสั่งซื้อ)
+    final itemLines = items
+        .map((i) => '- ${i.product.title} (${i.product.platform}) x${i.qty}')
+        .join('\n');
+    final address =
+        '${shipping['name']} โทร ${shipping['phone']}\n${shipping['address']}';
+    unawaited(EmailService.send(
+      to: customerEmail,
+      subject: 'DiscDock: ได้รับคำสั่งซื้อ #$short',
+      message: 'ขอบคุณที่สั่งซื้อกับ DiscDock\n\n'
+          'ออเดอร์ #$short\n$itemLines\n\n'
+          'ยอดสุทธิ ฿${finalTotal.toStringAsFixed(0)}\n\n'
+          'ที่อยู่จัดส่ง\n$address\n\n'
+          'สถานะ: รอชำระเงิน กรุณาสแกน PromptPay QR ในแอปเพื่อชำระเงิน',
+    ));
+    unawaited(EmailService.send(
+      to: ownerEmail,
+      subject: 'DiscDock: ออเดอร์ใหม่ #$short',
+      message: 'มีออเดอร์ใหม่ #$short\n$itemLines\n\n'
+          'ยอดสุทธิ ฿${finalTotal.toStringAsFixed(0)}\n'
+          'ลูกค้า: $customerEmail\n\nที่อยู่จัดส่ง\n$address',
+    ));
 
     return orderRef.id;
   }
